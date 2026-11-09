@@ -3,7 +3,7 @@ import type { Gateway, TerminalDecoratorOptions } from './types'
 export const APPEND_BYTES = 32 * 1024
 export const MAX_BUFFER_BYTES = 1024 * 1024 // Includes the one in-flight append.
 export const FLUSH_INTERVAL_MS = 100
-export const UNSUPPORTED = '当前宿主不支持终端输出订阅；请使用含 onOutput 与 fs.logs.* 接口的 0.2.1 或更新宿主。'
+export const UNSUPPORTED = '当前宿主不支持终端输出订阅；请使用含 onOutput 与 fs.logs.* 接口的 0.2.0 或更新宿主。'
 
 export type RecordingPhase = 'off' | 'opening' | 'recording' | 'stopping' | 'error' | 'disposed'
 export interface RecordingState {

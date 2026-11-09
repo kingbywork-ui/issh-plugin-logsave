@@ -40,10 +40,7 @@ export function mountSettings (target: HTMLElement, settings: Settings): () => v
     recordingError.className = 'issh-logsave-error'
     recordingError.setAttribute('role', 'alert')
     root.append(style(doc), element(doc, 'h3', '终端日志'), element(doc, 'p', '保存目录'), directory, choose, error,
-        element(doc, 'p', '每个终端右上角独立开启，默认关闭。目录更改只影响下次开始；重连后的新会话仍为关闭。'),
-        element(doc, 'p', '仅记录开启成功后的终端输出，不读取键盘输入或历史。原始 .log 保留 ANSI 控制序列；命令回显、令牌和其他敏感输出也可能被保存，请妥善保护目录。'),
-        element(doc, 'p', '需要含 onOutput 与 fs.logs.* 新接口的 0.2.0 或更新宿主；当前宿主缺少这些接口，请安装最新的 0.2.0 安装包。停用插件或退出应用可能丢失尚未落盘的尾部，请先在各终端停止并等待关闭完成。'),
-        element(doc, 'p', '最近一次录制错误（不会因切换设置页消失）'), recordingError)
+        element(doc, 'p', '最近一次录制错误'), recordingError)
     const render = (): void => {
         directory.textContent = settings.directory || '尚未选择目录'
         choose.disabled = settings.choosing

@@ -6,7 +6,7 @@ import type { IsshPlugin, IsshPluginContext, IsshPluginManifest } from './src/ty
 export const manifest: IsshPluginManifest = {
     id: 'issh-plugin-logsave',
     name: '终端日志',
-    version: '0.1.1',
+    version: '0.1.2',
     description: '按终端窗口独立开启的原始输出日志，保存至系统选择的目录',
     kind: 'feature',
     minAppVersion: '0.2.0',

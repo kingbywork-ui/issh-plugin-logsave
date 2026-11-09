@@ -109,7 +109,7 @@ test('strict noEmit TypeScript and matching manifests; runtime imports are local
     }))
     const manifest = JSON.parse(readFileSync(new URL('../plugin.json', import.meta.url), 'utf8'))
     assert.deepEqual(plugin.manifest, manifest)
-    assert.equal(manifest.version, '0.1.1')
+    assert.equal(manifest.version, '0.1.2')
     assert.equal(manifest.minAppVersion, '0.2.0')
     assert.deepEqual(manifest.permissions, ['settings:tab', 'terminal:decorate', 'fs.logs.write'])
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))

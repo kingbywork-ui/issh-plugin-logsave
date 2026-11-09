@@ -1,4 +1,4 @@
-# issh-plugin-logsave 0.1.1
+# issh-plugin-logsave 0.1.2
 
 独立安装的终端输出日志插件。使用本地最小结构类型和 DOM UI，无 Svelte 或其他运行时依赖，结构沿用 linkifier/config-sync。
 

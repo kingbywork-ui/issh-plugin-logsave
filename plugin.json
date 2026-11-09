@@ -1,0 +1,13 @@
+{
+    "id": "issh-plugin-logsave",
+    "name": "终端日志",
+    "version": "0.1.0",
+    "description": "按终端窗口独立开启的原始输出日志，保存至系统选择的目录",
+    "kind": "feature",
+    "minAppVersion": "0.2.1",
+    "entry": "index.js",
+    "gatewayApiVersion": "1",
+    "permissions": ["settings:tab", "terminal:decorate", "fs.logs.write"],
+    "capabilities": ["ui.settings.register", "terminal.decorate", "fs.logs.write"],
+    "author": "kingbywork-ui"
+}

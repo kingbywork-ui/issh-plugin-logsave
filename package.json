@@ -1,0 +1,16 @@
+{
+    "name": "issh-plugin-logsave",
+    "version": "0.1.0",
+    "description": "独立终端窗口输出日志插件（需包含新增日志接口的 issh 宿主）",
+    "type": "module",
+    "main": "index.ts",
+    "scripts": {
+        "build": "vite build",
+        "test": "node --test test/logsave.test.mjs",
+        "package": "node scripts/package.mjs"
+    },
+    "devDependencies": {
+        "vite": "^7.3.7"
+    },
+    "license": "MIT"
+}

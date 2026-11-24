@@ -6,6 +6,7 @@ const CSS = `
 .issh-logsave-settings { color:var(--text-primary,#e4e4e7); font:inherit; max-width:720px; line-height:1.6; }
 .issh-logsave-settings h3 { font-size:18px; margin:0 0 12px; }
 .issh-logsave-settings p { margin:8px 0; }
+.issh-logsave-settings label { display:flex; align-items:center; gap:8px; margin:12px 0; }
 .issh-logsave-settings code { display:block; white-space:pre-wrap; overflow-wrap:anywhere; padding:8px 10px; background:var(--bg-secondary,#27272a); border-radius:4px; }
 .issh-logsave-settings button, .issh-logsave-overlay button { font:inherit; cursor:pointer; border:1px solid #71717a; border-radius:4px; padding:5px 10px; background:var(--bg-secondary,#27272a); color:var(--text-primary,#f4f4f5); }
 .issh-logsave-settings button:focus-visible, .issh-logsave-overlay button:focus-visible { outline:2px solid #60a5fa; outline-offset:2px; }
@@ -39,22 +40,35 @@ export function mountSettings (target: HTMLElement, settings: Settings): () => v
     const recordingError = element(doc, 'p')
     recordingError.className = 'issh-logsave-error'
     recordingError.setAttribute('role', 'alert')
-    root.append(style(doc), element(doc, 'h3', '终端日志'), element(doc, 'p', '保存目录'), directory, choose, error,
+    const autoStartInput = element(doc, 'input')
+    autoStartInput.type = 'checkbox'
+    const autoStartLabel = element(doc, 'label')
+    const autoStartText = element(doc, 'span', '总开关：SSH 连接自动开启日志')
+    autoStartLabel.append(autoStartInput, autoStartText)
+    root.append(style(doc), element(doc, 'h3', '终端日志'), element(doc, 'p', '保存目录'), directory, choose, autoStartLabel, error,
         element(doc, 'p', '最近一次录制错误'), recordingError)
     const render = (): void => {
         directory.textContent = settings.directory || '尚未选择目录'
         choose.disabled = settings.choosing
         choose.textContent = settings.choosing ? '正在选择目录…' : '选择保存目录…'
+        autoStartInput.checked = settings.enabled
         error.textContent = settings.error
         error.hidden = !settings.error
         recordingError.textContent = settings.recordingError || '无'
     }
     const onChoose = (): void => { void settings.chooseDirectory() }
+    const onAutoStartChange = (): void => settings.setEnabled(autoStartInput.checked)
     choose.addEventListener('click', onChoose)
+    autoStartInput.addEventListener('change', onAutoStartChange)
     const unsubscribe = settings.subscribe(render)
     render()
     target.append(root)
-    return () => { unsubscribe(); choose.removeEventListener('click', onChoose); root.remove() }
+    return () => {
+        unsubscribe()
+        choose.removeEventListener('click', onChoose)
+        autoStartInput.removeEventListener('change', onAutoStartChange)
+        root.remove()
+    }
 }
 
 export function mountRecorder (target: HTMLElement, recorder: Recorder, supported: boolean): () => void {

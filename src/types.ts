@@ -12,5 +12,5 @@ export type {
     IsshPluginManifest,
     PluginStorage,
     TerminalDecoratorOptions,
-} from '../../../packages/issh-gateway/src/types'
-export type { PluginGateway as Gateway } from '../../../packages/issh-gateway/src/types'
+} from '../../new-ssh/packages/issh-gateway/src/types'
+export type { PluginGateway as Gateway } from '../../new-ssh/packages/issh-gateway/src/types'

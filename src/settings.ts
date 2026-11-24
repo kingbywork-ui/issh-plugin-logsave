@@ -2,9 +2,11 @@ import { errorText } from './recorder'
 import type { Gateway, PluginStorage } from './types'
 
 export const DIRECTORY_KEY = 'logsave.directory'
+export const AUTO_START_KEY = 'logsave.autoStart'
 
 export class Settings {
     directory = ''
+    enabled = true
     choosing = false
     error = ''
     recordingError = ''
@@ -12,14 +14,30 @@ export class Settings {
     private listeners = new Set<() => void>()
 
     constructor (private gateway: Pick<Gateway, 'request' | 'log'>, private storage: PluginStorage) {
-        try { this.directory = storage.get(DIRECTORY_KEY) ?? '' }
-        catch (cause) { this.error = `读取日志目录失败：${errorText(cause)}` }
+        try {
+            this.directory = storage.get(DIRECTORY_KEY) ?? ''
+            this.enabled = storage.get(AUTO_START_KEY) !== '0'
+        } catch (cause) {
+            this.error = `读取日志配置失败：${errorText(cause)}`
+        }
     }
     subscribe (listener: () => void): () => void {
         this.listeners.add(listener)
         return () => { this.listeners.delete(listener) }
     }
     private notify (): void { for (const listener of this.listeners) listener() }
+    setEnabled (value: boolean): void {
+        if (!this.active || this.enabled === value) return
+        try {
+            // Persist first: the UI checkbox must not look ahead of the stored value.
+            this.storage.set(AUTO_START_KEY, value ? '1' : '0')
+            this.enabled = value
+            this.error = ''
+        } catch (cause) {
+            this.error = `保存自动开启设置失败：${errorText(cause)}`
+        }
+        this.notify()
+    }
     reportRecordingError (message: string): void {
         this.recordingError = message
         this.notify()

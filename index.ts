@@ -6,7 +6,7 @@ import type { IsshPlugin, IsshPluginContext, IsshPluginManifest } from './src/ty
 export const manifest: IsshPluginManifest = {
     id: 'issh-plugin-logsave',
     name: '终端日志',
-    version: '0.1.2',
+    version: '0.1.3',
     description: '按终端窗口独立开启的原始输出日志，保存至系统选择的目录',
     kind: 'feature',
     minAppVersion: '0.2.0',
@@ -68,6 +68,8 @@ const plugin: IsshPlugin = {
                     message => settings.reportRecordingError(`${label}：${message}`))
                 recordings.add(recorder)
                 const remove = trackView(mountRecorder(target, recorder, typeof options.onOutput === 'function'))
+                // Auto-start is a per-connection action, not a state inherited from another session.
+                if (options.kind === 'ssh' && settings.enabled && typeof options.onOutput === 'function') recorder.start()
                 if (!options.onOutput) settings.reportRecordingError(`${label}：${UNSUPPORTED}`)
                 options.dispose(() => {
                     remove()
@@ -76,7 +78,7 @@ const plugin: IsshPlugin = {
                 })
             },
         }))
-        ctx.gateway.log('info', 'logsave plugin activated; all terminal recordings default to off')
+        ctx.gateway.log('info', 'logsave plugin activated; SSH auto-start follows the stored master switch')
     },
     async deactivate () { await shutdown?.() },
 }

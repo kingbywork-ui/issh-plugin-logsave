@@ -7,7 +7,7 @@ import { test } from 'node:test'
 
 // Reuse installed monorepo tooling, with no install, build, or generated files.
 let ts
-for (const base of ['../../../package.json', '../../../issh-tauri/package.json']) {
+for (const base of ['../../../package.json', '../../../issh-tauri/package.json', '../../new-ssh/package.json']) {
     try { ts = createRequire(new URL(base, import.meta.url))('typescript'); break } catch { /* Try next existing toolchain. */ }
 }
 if (!ts) throw new Error('测试需要 monorepo root 或 issh-tauri 已有的 TypeScript；不会自动安装')
@@ -25,7 +25,7 @@ function moduleUrl (url) {
     return result
 }
 const { Recorder, APPEND_BYTES, MAX_BUFFER_BYTES, makeFileName } = await import(moduleUrl(new URL('../src/recorder.ts', import.meta.url)))
-const { Settings, DIRECTORY_KEY } = await import(moduleUrl(new URL('../src/settings.ts', import.meta.url)))
+const { Settings, DIRECTORY_KEY, AUTO_START_KEY } = await import(moduleUrl(new URL('../src/settings.ts', import.meta.url)))
 const { default: plugin } = await import(moduleUrl(new URL('../index.ts', import.meta.url)))
 
 function deferred () {
@@ -109,7 +109,7 @@ test('strict noEmit TypeScript and matching manifests; runtime imports are local
     }))
     const manifest = JSON.parse(readFileSync(new URL('../plugin.json', import.meta.url), 'utf8'))
     assert.deepEqual(plugin.manifest, manifest)
-    assert.equal(manifest.version, '0.1.2')
+    assert.equal(manifest.version, '0.1.3')
     assert.equal(manifest.minAppVersion, '0.2.0')
     assert.deepEqual(manifest.permissions, ['settings:tab', 'terminal:decorate', 'fs.logs.write'])
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
@@ -443,11 +443,68 @@ test('directory picker single-flight, cancel preserves storage, storage failure 
     assert.equal(saved.get(DIRECTORY_KEY), '/new')
 })
 
+test('auto-start master switch defaults on and persists explicit changes', () => {
+    const saved = new Map()
+    const settings = new Settings({ log () {} }, { get: key => saved.get(key) ?? null, set: (key, value) => saved.set(key, value) })
+    assert.equal(settings.enabled, true)
+    settings.setEnabled(false)
+    assert.equal(settings.enabled, false)
+    assert.equal(saved.get(AUTO_START_KEY), '0')
+    settings.setEnabled(false)
+    settings.setEnabled(true)
+    assert.equal(settings.enabled, true)
+    assert.equal(saved.get(AUTO_START_KEY), '1')
+    settings.dispose()
+    settings.setEnabled(false)
+    assert.equal(settings.enabled, true)
+})
+
+test('SSH sessions auto-start from master switch; local and disabled sessions do not', async t => {
+    let decorator, tab
+    const rpc = gatewayFixture()
+    const saved = new Map([[DIRECTORY_KEY, '/A'], [AUTO_START_KEY, '1']])
+    plugin.activate({ storage: { get: key => saved.get(key) ?? null, set: (key, value) => saved.set(key, value) }, gateway: { ...rpc.gateway,
+        ui: {
+            registerTerminalDecorator (value) { decorator = value; return () => {} },
+            registerSettingsTab (value) { tab = value; return () => {} },
+        },
+    } })
+    t.after(() => plugin.deactivate())
+    const settingsTarget = dom()
+    const unmountSettings = tab.mount(settingsTarget)
+    function decorate (kind, id) {
+        const target = dom(), source = outputSource(), cleanups = []
+        decorator.decorate({ sessionId: id, title: id, kind, profile: kind === 'ssh' ? { host: '192.0.2.1' } : null, terminal: { element: target },
+            onOutput: source.onOutput, dispose: cb => cleanups.push(cb) })
+        return { source, cleanup () { for (const cb of cleanups.splice(0)) cb() },
+            button: find(target, node => node.tagName === 'button') }
+    }
+    const local = decorate('local', 'L')
+    assert.equal(local.source.subscriptions, 0)
+    assert.equal(local.button.textContent, '开启日志')
+    const ssh = decorate('ssh', 'S1')
+    await until(() => ssh.source.subscriptions === 1)
+    assert.equal(rpc.calls[0].method, 'fs.logs.open')
+    assert.equal(ssh.button.textContent, '停止日志')
+    const master = find(settingsTarget, node => node.tagName === 'input')
+    assert.equal(master.checked, true)
+    master.checked = false
+    master.events.change()
+    assert.equal(saved.get(AUTO_START_KEY), '0')
+    assert.equal(ssh.source.subscriptions, 1)
+    const disabled = decorate('ssh', 'S2')
+    assert.equal(disabled.source.subscriptions, 0)
+    assert.equal(disabled.button.textContent, '开启日志')
+    ssh.cleanup(); disabled.cleanup(); local.cleanup()
+    unmountSettings()
+})
+
+
 // Tiny DOM substitute to test mounting, visible state, actions and cleanup, not geometry.
 class Node {
     constructor (doc, tag) {
         this.ownerDocument = doc; this.tagName = tag; this.children = []; this.style = { position: '', padding: '9px', width: '500px' }
-        this.dataset = {}; this.attributes = {}; this.events = {}; this.textContent = ''; this.disabled = false
+        this.dataset = {}; this.attributes = {}; this.events = {}; this.textContent = ''; this.checked = false; this.type = ''; this.disabled = false
     }
     append (...children) { for (const child of children) { child.parent = this; this.children.push(child) } }
     setAttribute (name, value) { this.attributes[name] = value }

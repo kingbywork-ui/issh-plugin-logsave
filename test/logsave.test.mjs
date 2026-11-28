@@ -109,7 +109,7 @@ test('strict noEmit TypeScript and matching manifests; runtime imports are local
     }))
     const manifest = JSON.parse(readFileSync(new URL('../plugin.json', import.meta.url), 'utf8'))
     assert.deepEqual(plugin.manifest, manifest)
-    assert.equal(manifest.version, '0.1.3')
+    assert.equal(manifest.version, '0.1.4')
     assert.equal(manifest.minAppVersion, '0.2.0')
     assert.deepEqual(manifest.permissions, ['settings:tab', 'terminal:decorate', 'fs.logs.write'])
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
@@ -457,6 +457,41 @@ test('auto-start master switch defaults on and persists explicit changes', () =>
     settings.dispose()
     settings.setEnabled(false)
     assert.equal(settings.enabled, true)
+})
+
+test('concurrent SSH auto-starts serialize saved-directory confirmation', async t => {
+    let decorator, tab
+    const openGate = deferred()
+    let opens = 0
+    const rpc = gatewayFixture(async method => {
+        if (method === 'fs.logs.open') {
+            opens += 1
+            if (opens === 1) await openGate.promise
+        }
+    })
+    plugin.activate({ storage: { get: () => '/A', set () {} }, gateway: { ...rpc.gateway,
+        ui: {
+            registerTerminalDecorator (value) { decorator = value; return () => {} },
+            registerSettingsTab (value) { tab = value; return () => {} },
+        },
+    } })
+    t.after(() => plugin.deactivate())
+    const settingsTarget = dom()
+    const unmountSettings = tab.mount(settingsTarget)
+    function decorate (id) {
+        const target = dom(), source = outputSource(), cleanups = []
+        decorator.decorate({ sessionId: id, title: id, kind: 'ssh', profile: { host: '192.0.2.1' }, terminal: { element: target },
+            onOutput: source.onOutput, dispose: cb => cleanups.push(cb) })
+        return { source, cleanup () { for (const cb of cleanups.splice(0)) cb() } }
+    }
+    const first = decorate('S1'), second = decorate('S2'), third = decorate('S3')
+    await until(() => rpc.calls.filter(call => call.method === 'fs.logs.open').length === 1)
+    assert.equal(opens, 1)
+    openGate.resolve()
+    await until(() => first.source.subscriptions === 1 && second.source.subscriptions === 1 && third.source.subscriptions === 1)
+    assert.equal(rpc.calls.filter(call => call.method === 'fs.logs.open').length, 3)
+    assert.equal(opens, 3)
+    first.cleanup(); second.cleanup(); third.cleanup(); unmountSettings()
 })
 
 test('SSH sessions auto-start from master switch; local and disabled sessions do not', async t => {

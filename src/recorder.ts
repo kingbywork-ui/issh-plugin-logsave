@@ -39,6 +39,20 @@ function toBase64 (bytes: Uint8Array): string {
     return btoa(binary)
 }
 
+const directoryOpenLocks = new Map<string, Promise<unknown>>()
+
+/**
+ * Saved-directory confirmation is one dialog per plugin token.  Concurrent
+ * auto-starts must therefore serialize `fs.logs.open`; after the first open is
+ * approved, the same token can open the remaining logs without extra dialogs.
+ */
+async function requestOpenSerialized<T> (directory: string, request: () => Promise<T>): Promise<T> {
+    const previous = directoryOpenLocks.get(directory) ?? Promise.resolve()
+    const next = previous.then(request, request)
+    directoryOpenLocks.set(directory, next.catch(() => undefined))
+    return next
+}
+
 /** One worker and one bounded ring per recording, not a promise per output event. */
 export class Recorder {
     private state: RecordingState = { phase: 'off', path: '', error: '', bufferedBytes: 0, writtenBytes: 0 }
@@ -166,10 +180,10 @@ export class Recorder {
         let logId: string | null = null
         try {
             // Saved directories may require system confirmation; keep the response/handle alive while waiting.
-            const opened = await this.gateway.request<{ logId: string; path: string }>('fs.logs.open', {
+            const opened = await requestOpenSerialized(directory, () => this.gateway.request<{ logId: string; path: string }>('fs.logs.open', {
                 directory,
                 fileName: makeFileName(this.terminal.kind, this.terminal.profile?.host),
-            }, { timeoutMs: 300000 })
+            }, { timeoutMs: 300000 }))
             // Retain a valid handle even if another response field is malformed, so it can close.
             if (typeof opened?.logId === 'string' && opened.logId) logId = opened.logId
             if (!logId || typeof opened?.path !== 'string' || !opened.path) throw new Error('open 返回无效的日志句柄或路径')
